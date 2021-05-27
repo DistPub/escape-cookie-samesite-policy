@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "Escape Cookie SameSite Policy",
+  "short_name": "Escape Cookie SameSite Policy",
+  "version": "1.0.0",
+  "description": "auto modify all response set-cookie headers with samesite=none and secure=true",
+
+  "browser_action": {
+    "default_icon": "icon370.jpg",
+    "default_title": "Escape Cookie SameSite Policy"
+  },
+  "icons": {
+    "370": "icon370.jpg"
+  },
+
+  "author": "Smite Chow",
+  "background": {
+    "persistent": true,
+    "scripts": ["background.js"]
+  },
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "*://*/*"
+  ]
+}
