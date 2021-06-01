@@ -3,7 +3,8 @@
   "name": "Escape Cookie SameSite Policy",
   "short_name": "Escape Cookie SameSite Policy",
   "version": "1.0.0",
-  "description": "auto modify all response set-cookie headers with samesite=none and secure=true",
+  "description": "auto modify whitelist host response set-cookie headers with samesite=none and secure=true",
+  "homepage_url": "https://chrome.google.com/webstore/detail/cjgmkbfjklhgkbpcojmbjooiaofjjbbn",
 
   "browser_action": {
     "default_icon": "icon370.jpg",
@@ -14,11 +15,13 @@
   },
 
   "author": "Smite Chow",
+  "options_page": "options.html",
   "background": {
     "persistent": true,
     "scripts": ["background.js"]
   },
   "permissions": [
+    "storage",
     "webRequest",
     "webRequestBlocking",
     "*://*/*"
