@@ -1,3 +1,4 @@
+// config section
 const config = {};
 chrome.storage.local.get(['whitelist', 'forceSecure'], result => {
   if (result.whitelist) {
@@ -9,24 +10,8 @@ chrome.storage.local.get(['whitelist', 'forceSecure'], result => {
   config.forceSecure = Boolean(result.forceSecure);
 });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.path === "o2b" && request.method === "page-load") {
-    chrome.runtime.sendMessage({path: "b2o", method: 'whitelist', data: config.whitelist});
-    chrome.runtime.sendMessage({path: "b2o", method: 'force-secure', data: config.forceSecure});
-  }
-
-  if (request.path === 'o2b' && request.method === 'set-whitelist') {
-    config.whitelist = request.data;
-    chrome.storage.local.set({whitelist: request.data});
-  }
-
-  if (request.path === 'o2b' && request.method === 'set-force-secure') {
-    config.forceSecure = request.data;
-    chrome.storage.local.set({forceSecure: request.data});
-  }
-});
-
-chrome.webRequest.onHeadersReceived.addListener(details => {
+// business logic
+const service = details => {
   let url = new URL(details.url);
 
   if (!config.whitelist.includes(url.host)) {
@@ -82,11 +67,37 @@ chrome.webRequest.onHeadersReceived.addListener(details => {
     }
   }
   return { responseHeaders: [...notSetCookies, ...setCookies] };
-},
+};
+
+chrome.webRequest.onHeadersReceived.addListener(service,
   // filters
-  {
-    urls: ["*://*/*"],
-  },
+  { urls: ["*://*/*"] },
   // extraInfoSpec
   ["blocking","responseHeaders","extraHeaders"]
 );
+
+// options page server
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  let method = request.method;
+
+  if (method === "get-config") {
+    sendResponse(config);
+  }
+  if (method === 'set-whitelist') {
+    config.whitelist = request.data;
+    chrome.storage.local.set({whitelist: request.data});
+  }
+  if (method === 'set-force-secure') {
+    config.forceSecure = request.data;
+    chrome.storage.local.set({forceSecure: request.data});
+  }
+});
+
+// external website page server
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+  let method = request.method;
+
+  if (method === "ping") {
+    sendResponse("pong");
+  }
+});

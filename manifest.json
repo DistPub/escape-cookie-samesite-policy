@@ -9,7 +9,8 @@
 
   "browser_action": {
     "default_icon": "icon370.jpg",
-    "default_title": "Escape Cookie SameSite Policy"
+    "default_title": "Escape Cookie SameSite Policy",
+    "default_popup": "popup.html"
   },
   "icons": {
     "370": "icon370.jpg"
@@ -20,6 +21,10 @@
   "background": {
     "persistent": true,
     "scripts": ["background.js"]
+  },
+  "externally_connectable": {
+    "ids": ["*"],
+    "matches": ["https://local.dev:4443/*", "https://gallery.dist.pub/*"]
   },
   "permissions": [
     "storage",
