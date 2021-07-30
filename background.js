@@ -86,10 +86,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (method === 'set-whitelist') {
     config.whitelist = request.data;
     chrome.storage.local.set({whitelist: request.data});
+    sendResponse(config);
   }
   if (method === 'set-force-secure') {
     config.forceSecure = request.data;
     chrome.storage.local.set({forceSecure: request.data});
+    sendResponse(config);
   }
 });
 
@@ -99,5 +101,15 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
 
   if (method === "ping") {
     sendResponse("pong");
+  }
+  if (method === "get-config") {
+    sendResponse(config);
+  }
+  if (method === 'add-whitelist') {
+    if (!config.whitelist.includes(request.data)) {
+      config.whitelist.push(request.data);
+      chrome.storage.local.set({whitelist: config.whitelist});
+    }
+    sendResponse(config);
   }
 });
