@@ -10,6 +10,9 @@ chrome.storage.local.get(['whitelist', 'forceSecure'], result => {
   config.forceSecure = Boolean(result.forceSecure);
 });
 
+const plus = [];
+const queue = {};
+
 // business logic
 const service = details => {
   let url = new URL(details.url);
@@ -93,6 +96,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.local.set({forceSecure: request.data});
     sendResponse(config);
   }
+
+  if (method === "get-feature-plus") {
+    sendResponse(plus);
+  }
+
+  if (method === 'add-flow') {
+    queue[request.tab].push(request.flow);
+    sendResponse(queue[request.tab])
+  }
+
+  if (method === 'delete-feature-plus') {
+    let [item] = plus.splice(request.idx, 1);
+    delete queue[item.tab.id];
+  }
 });
 
 // external website page server
@@ -111,5 +128,24 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
       chrome.storage.local.set({whitelist: config.whitelist});
     }
     sendResponse(config);
+  }
+  if (method === "add-feature-plus") {
+    if (plus.map(item => item.tab.id).includes(sender.tab.id)) {
+      sendResponse(null);
+    } else {
+      delete request.method;
+      request.tab = sender.tab;
+      plus.push(request);
+      sendResponse(request);
+      queue[sender.tab.id] = [];
+    }
+  }
+
+  if (method === 'get-flow') {
+    if (queue[sender.tab.id]?.length) {
+      sendResponse(queue[sender.tab.id].shift());
+    } else {
+      sendResponse(null);
+    }
   }
 });
