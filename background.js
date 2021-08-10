@@ -12,13 +12,71 @@ chrome.storage.local.get(['whitelist', 'forceSecure'], result => {
 
 const plus = [];
 const queue = {};
+const tabRequest = {};
 
 // business logic
+chrome.tabs.onRemoved.addListener(tabId => {
+  if (tabRequest[tabId]) {
+    console.log(`tab ${tabId} removed, clear tabRequest`);
+    delete tabRequest[tabId];
+  }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (tabRequest[tabId] && changeInfo.url) {
+    console.log(`tab ${tabId} url updated, empty tabRequest`);
+    tabRequest[tabId] = {};
+  }
+});
+
+chrome.webRequest.onBeforeRequest.addListener(details => {
+  let url = new URL(details.url);
+
+  if (!config.whitelist.includes(url.host)) {
+    return;
+  }
+
+  if (details.tabId === -1) {
+    return;
+  }
+
+  if (tabRequest[details.tabId]) {
+    tabRequest[details.tabId][details.requestId] = details;
+  } else {
+    tabRequest[details.tabId]= {};
+    tabRequest[details.tabId][details.requestId] = details;
+  }
+},
+// filters
+{ urls: ["*://*/*"] },
+// extraInfoSpec
+["requestBody"]);
+
+chrome.webRequest.onBeforeSendHeaders.addListener(details => {
+  let url = new URL(details.url);
+
+  if (!config.whitelist.includes(url.host)) {
+    return;
+  }
+
+  if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
+    tabRequest[details.tabId][details.requestId].requestHeaders = details.requestHeaders;
+  }
+},
+// filters
+{ urls: ["*://*/*"] },
+// extraInfoSpec
+["requestHeaders"]);
+
 const service = details => {
   let url = new URL(details.url);
 
   if (!config.whitelist.includes(url.host)) {
     return {responseHeaders: details.responseHeaders}
+  }
+
+  if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
+    tabRequest[details.tabId][details.requestId].responseHeaders = details.responseHeaders;
   }
 
   let notSetCookies = details.responseHeaders.filter(item=>!/set-cookie/i.test(item.name));
@@ -109,6 +167,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (method === 'delete-feature-plus') {
     let [item] = plus.splice(request.idx, 1);
     delete queue[item.tab.id];
+  }
+
+  if (method === 'get-history-requests') {
+    sendResponse(tabRequest[request.tabId] ?? {});
   }
 });
 
