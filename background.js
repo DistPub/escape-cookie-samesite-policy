@@ -13,6 +13,7 @@ chrome.storage.local.get(['whitelist', 'forceSecure'], result => {
 const plus = [];
 const queue = {};
 const tabRequest = {};
+const requestHeaders = {};
 
 // business logic
 chrome.tabs.onRemoved.addListener(tabId => {
@@ -59,6 +60,8 @@ chrome.webRequest.onBeforeSendHeaders.addListener(details => {
     return;
   }
 
+  requestHeaders[details.requestId] = details.requestHeaders;
+
   if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
     tabRequest[details.tabId][details.requestId].requestHeaders = details.requestHeaders;
   }
@@ -68,15 +71,80 @@ chrome.webRequest.onBeforeSendHeaders.addListener(details => {
 // extraInfoSpec
 ["requestHeaders"]);
 
-const service = details => {
+chrome.webRequest.onHeadersReceived.addListener(details => {
   let url = new URL(details.url);
 
   if (!config.whitelist.includes(url.host)) {
-    return {responseHeaders: details.responseHeaders}
+    return;
   }
 
   if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
     tabRequest[details.tabId][details.requestId].responseHeaders = details.responseHeaders;
+  }
+},
+// filters
+{ urls: ["*://*/*"] },
+// extraInfoSpec
+["responseHeaders"]);
+
+// escape cors policy
+const corsService = details => {
+  let url = new URL(details.url);
+
+  if (!config.whitelist.includes(url.host)) {
+    return {responseHeaders: details.responseHeaders};
+  }
+
+  let extra = [];
+  extra.push({
+    name: 'Access-Control-Allow-Origin',
+    value: details.initiator === 'null' ? '*' : details.initiator ? details.initiator : '*'
+  });
+  extra.push({
+    name: 'Access-Control-Allow-Methods',
+    value: 'GET, PUT, POST, DELETE, HEAD, OPTIONS'
+  });
+  extra.push({
+    name: 'Access-Control-Allow-Credentials',
+    value: 'true'
+  });
+  extra.push({
+    name: 'Access-Control-Expose-Headers',
+    value: details.responseHeaders.map(item=>item.name).join(', ')
+  });
+
+  if (requestHeaders[details.requestId]) {
+    let headers = Object.fromEntries(
+      requestHeaders[details.requestId].map(item=>[item.name.toLowerCase(), item.value])
+    );
+
+    if (headers['access-control-request-headers']) {
+      extra.push({
+        name: 'Access-Control-Allow-Headers',
+        value: headers['access-control-request-headers']
+      });
+    }
+    delete requestHeaders[details.requestId];
+  }
+
+  return {responseHeaders: [
+    ...details.responseHeaders.filter(item=>!item.name.toLowerCase().startsWith('access-control-')),
+    ...extra]};
+};
+
+chrome.webRequest.onHeadersReceived.addListener(corsService,
+  // filters
+  { urls: ["*://*/*"] },
+  // extraInfoSpec
+  ["blocking","responseHeaders","extraHeaders"]
+);
+
+// escape cookie samesite policy
+const cookieService = details => {
+  let url = new URL(details.url);
+
+  if (!config.whitelist.includes(url.host)) {
+    return {responseHeaders: details.responseHeaders};
   }
 
   let notSetCookies = details.responseHeaders.filter(item=>!/set-cookie/i.test(item.name));
@@ -114,23 +182,16 @@ const service = details => {
     return cookie;
   });
 
-  if (setCookies.length) {
+  if (setCookies.length && url.protocol === 'http:' && config.forceSecure) {
     setCookies.push({
       name: 'x-chrome-extension-note',
-      value: 'modified all set-cookie headers to disable samesite policy'
+      value: `the origin set-cookie is insecure but modified to secure, you need add ${url.origin} to chrome://flags/#unsafely-treat-insecure-origin-as-secure`
     });
-
-    if (url.protocol === 'http:' && config.forceSecure) {
-      setCookies.push({
-        name: 'x-chrome-extension-note',
-        value: `the origin is insecure but modified to secure, you need add ${url.origin} to chrome://flags/#unsafely-treat-insecure-origin-as-secure`
-      });
-    }
   }
   return { responseHeaders: [...notSetCookies, ...setCookies] };
 };
 
-chrome.webRequest.onHeadersReceived.addListener(service,
+chrome.webRequest.onHeadersReceived.addListener(cookieService,
   // filters
   { urls: ["*://*/*"] },
   // extraInfoSpec
