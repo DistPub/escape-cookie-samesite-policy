@@ -22,10 +22,12 @@
     "persistent": true,
     "scripts": ["background.js"]
   },
-  "externally_connectable": {
-    "ids": ["*"],
-    "matches": ["https://local.dev:4443/*", "https://gallery.dist.pub/*"]
-  },
+  "content_scripts": [
+   {
+     "matches": ["*://*/*"],
+     "js": ["contentScript.js"]
+   }
+ ],
   "permissions": [
     "storage",
     "webRequest",

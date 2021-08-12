@@ -202,7 +202,18 @@ chrome.webRequest.onHeadersReceived.addListener(cookieService,
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   let method = request.method;
 
+  if (method === "ping") {
+    sendResponse("pong");
+  }
+
   if (method === "get-config") {
+    sendResponse(config);
+  }
+  if (method === 'add-whitelist') {
+    if (!config.whitelist.includes(request.data)) {
+      config.whitelist.push(request.data);
+      chrome.storage.local.set({whitelist: config.whitelist});
+    }
     sendResponse(config);
   }
   if (method === 'set-whitelist') {
@@ -216,42 +227,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(config);
   }
 
-  if (method === "get-feature-plus") {
-    sendResponse(plus);
-  }
-
-  if (method === 'add-flow') {
-    queue[request.tab].push(request.flow);
-    sendResponse(queue[request.tab])
-  }
-
-  if (method === 'delete-feature-plus') {
-    let [item] = plus.splice(request.idx, 1);
-    delete queue[item.tab.id];
-  }
-
-  if (method === 'get-history-requests') {
-    sendResponse(tabRequest[request.tabId] ?? {});
-  }
-});
-
-// external website page server
-chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
-  let method = request.method;
-
-  if (method === "ping") {
-    sendResponse("pong");
-  }
-  if (method === "get-config") {
-    sendResponse(config);
-  }
-  if (method === 'add-whitelist') {
-    if (!config.whitelist.includes(request.data)) {
-      config.whitelist.push(request.data);
-      chrome.storage.local.set({whitelist: config.whitelist});
-    }
-    sendResponse(config);
-  }
   if (method === "add-feature-plus") {
     if (plus.map(item => item.tab.id).includes(sender.tab.id)) {
       sendResponse(null);
@@ -263,7 +238,22 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
       queue[sender.tab.id] = [];
     }
   }
+  if (method === "get-feature-plus") {
+    sendResponse(plus);
+  }
+  if (method === 'delete-feature-plus') {
+    let [item] = plus.splice(request.idx, 1);
+    delete queue[item.tab.id];
+  }
 
+  if (method === 'get-history-requests') {
+    sendResponse(tabRequest[request.tabId] ?? {});
+  }
+
+  if (method === 'add-flow') {
+    queue[request.tab].push(request.flow);
+    sendResponse(queue[request.tab])
+  }
   if (method === 'get-flow') {
     if (queue[sender.tab.id]?.length) {
       sendResponse(queue[sender.tab.id].shift());
