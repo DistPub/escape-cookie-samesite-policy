@@ -36,7 +36,7 @@ window.addEventListener("load", async () => {
   chrome.runtime.sendMessage({method: 'get-feature-plus'}, async response => {
     for (let [idx, plus] of response.entries()) {
       try {
-        let [itis] = await exec(plus.tab.id, {code: `(function(){return location.href==="${plus.tab.url}";})();`});
+        let [itis] = await exec(plus.tab.id, {code: `;(function(){return location.href==="${plus.tab.url}";})()`});
 
         // not alive
         if (!itis) {
@@ -50,7 +50,7 @@ window.addEventListener("load", async () => {
         continue;
       }
 
-      let [match] = await exec(tab.id, {code: `(function(historyRequests){${plus.checker}})(${historyRequests})`});
+      let [match] = await exec(tab.id, {code: `;(${plus.checker})(${historyRequests})`});
       if (!match) {
         console.log(`not matched, plus: ${idx}`);
         continue;
@@ -60,7 +60,7 @@ window.addEventListener("load", async () => {
       $item.innerHTML = `<button>${plus.name}</button>`;
       $plus.appendChild($item);
       $item.onclick = async () => {
-        let [flow] = await exec(tab.id, {code: `(function(historyRequests){${plus.maker}})(${historyRequests})`});
+        let [flow] = await exec(tab.id, {code: `;(${plus.maker})(${historyRequests})`});
         chrome.runtime.sendMessage({method: 'add-flow', tab: plus.tab.id, flow});
       }
     }
