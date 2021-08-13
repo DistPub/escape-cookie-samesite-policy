@@ -15,7 +15,7 @@ window.addEventListener("load", async () => {
   let $list = document.querySelector('#list');
 
   chrome.runtime.sendMessage({method: 'get-config'}, response => {
-    Object.values(response.whitelist).reduce((a, b)=>a.concat(b), []).map(item => {
+    Array.from(new Set(Object.values(response.whitelist).reduce((a, b)=>a.concat(b), []))).map(item => {
       let $item = document.createElement('li');
       $item.innerText = item;
       $list.appendChild($item);
