@@ -1,13 +1,11 @@
 // config section
 const config = {};
-chrome.storage.local.get(['whitelist', 'forceSecure'], result => {
+chrome.storage.local.get(['whitelist'], result => {
   if (result.whitelist) {
     config.whitelist = result.whitelist;
   } else {
     config.whitelist = [];
   }
-
-  config.forceSecure = Boolean(result.forceSecure);
 });
 
 const plus = [];
@@ -174,7 +172,7 @@ const cookieService = details => {
       attrs.push('SameSite=None');
     }
 
-    if (!existsSecure && (url.protocol === 'https:' || config.forceSecure)) {
+    if (!existsSecure) {
       attrs.push('Secure')
     }
 
@@ -182,7 +180,7 @@ const cookieService = details => {
     return cookie;
   });
 
-  if (setCookies.length && url.protocol === 'http:' && config.forceSecure) {
+  if (setCookies.length && url.protocol === 'http:') {
     setCookies.push({
       name: 'x-chrome-extension-note',
       value: `the origin set-cookie is insecure but modified to secure, you need add ${url.origin} to chrome://flags/#unsafely-treat-insecure-origin-as-secure`
@@ -219,11 +217,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (method === 'set-whitelist') {
     config.whitelist = request.data;
     chrome.storage.local.set({whitelist: request.data});
-    sendResponse(config);
-  }
-  if (method === 'set-force-secure') {
-    config.forceSecure = request.data;
-    chrome.storage.local.set({forceSecure: request.data});
     sendResponse(config);
   }
 
