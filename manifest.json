@@ -24,15 +24,16 @@
   },
   "content_scripts": [
    {
-     "matches": ["*://*/*"],
+     "matches": ["<all_urls>"],
      "run_at": "document_start",
      "js": ["contentScript.js"]
    }
  ],
   "permissions": [
     "storage",
+    "tabs",
     "webRequest",
     "webRequestBlocking",
-    "*://*/*"
+    "<all_urls>"
   ]
 }
