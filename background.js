@@ -4,7 +4,7 @@ chrome.storage.local.get(['whitelist'], result => {
   if (result.whitelist) {
     config.whitelist = result.whitelist;
   } else {
-    config.whitelist = [];
+    config.whitelist = {};
   }
 });
 
@@ -12,6 +12,10 @@ const plus = [];
 const queue = {};
 const tabRequest = {};
 const requestHeaders = {};
+
+function getAllWhitelistOrigin() {
+  return Object.values(config.whitelist).reduce((a, b) => a.concat(b), []);
+}
 
 // business logic
 chrome.tabs.onRemoved.addListener(tabId => {
@@ -31,7 +35,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 chrome.webRequest.onBeforeRequest.addListener(details => {
   let url = new URL(details.url);
 
-  if (!config.whitelist.includes(url.host)) {
+  if (!getAllWhitelistOrigin().includes(url.origin)) {
     return;
   }
 
@@ -54,7 +58,7 @@ chrome.webRequest.onBeforeRequest.addListener(details => {
 chrome.webRequest.onBeforeSendHeaders.addListener(details => {
   let url = new URL(details.url);
 
-  if (!config.whitelist.includes(url.host)) {
+  if (!getAllWhitelistOrigin().includes(url.origin)) {
     return;
   }
 
@@ -72,7 +76,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(details => {
 chrome.webRequest.onHeadersReceived.addListener(details => {
   let url = new URL(details.url);
 
-  if (!config.whitelist.includes(url.host)) {
+  if (!getAllWhitelistOrigin().includes(url.origin)) {
     return;
   }
 
@@ -89,7 +93,7 @@ chrome.webRequest.onHeadersReceived.addListener(details => {
 const corsService = details => {
   let url = new URL(details.url);
 
-  if (!config.whitelist.includes(url.host)) {
+  if (!config.whitelist[details.initiator]?.includes(url.origin)) {
     return {responseHeaders: details.responseHeaders};
   }
 
@@ -141,7 +145,7 @@ chrome.webRequest.onHeadersReceived.addListener(corsService,
 const cookieService = details => {
   let url = new URL(details.url);
 
-  if (!config.whitelist.includes(url.host)) {
+  if (!getAllWhitelistOrigin().includes(url.origin)) {
     return {responseHeaders: details.responseHeaders};
   }
 
@@ -207,13 +211,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (method === "get-config") {
     sendResponse(config);
   }
+
+  if (method === "get-whitelist") {
+    sendResponse(config.whitelist[sender.origin] ?? []);
+  }
+
   if (method === 'add-whitelist') {
-    if (!config.whitelist.includes(request.data)) {
-      config.whitelist.push(request.data);
+    let update = false;
+
+    if (!config.whitelist[sender.origin]) {
+      config.whitelist[sender.origin] = []
+      update = true;
+    }
+
+    if (!config.whitelist[sender.origin].includes(request.data)) {
+      config.whitelist[sender.origin].push(request.data);
+      update = true;
+    }
+
+    if (update) {
       chrome.storage.local.set({whitelist: config.whitelist});
     }
-    sendResponse(config);
+
+    sendResponse(config.whitelist[sender.origin]);
   }
+
   if (method === 'set-whitelist') {
     config.whitelist = request.data;
     chrome.storage.local.set({whitelist: request.data});
