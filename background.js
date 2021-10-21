@@ -81,16 +81,32 @@ chrome.webRequest.onBeforeSendHeaders.addListener(details => {
     return;
   }
 
-  requestHeaders[details.requestId] = details.requestHeaders;
+  let extra = [];
+  let params = Object.fromEntries(url.searchParams);
+  if (params['x-edge-lover']) {
+    let data = JSON.parse(atob(params['x-edge-lover']));
 
-  if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
-    tabRequest[details.tabId][details.requestId].requestHeaders = details.requestHeaders;
+    if (data.headers) {
+      for (let [k, v] of Object.entries(data.headers)) {
+        extra.push({name: k, value: v});
+      }
+    }
   }
+  let extraNames = extra.map(item=>item.name.toLowerCase());
+  let headers = [];
+
+  for (let item of details.requestHeaders) {
+    if (extraNames.includes(item.name.toLowerCase())) {
+      continue;
+    }
+    headers.push(item);
+  }
+  return {requestHeaders: [...headers, ...extra]};
 },
 // filters
 { urls: ["*://*/*"] },
 // extraInfoSpec
-["requestHeaders"]);
+["requestHeaders", "blocking", "extraHeaders"]);
 
 chrome.webRequest.onHeadersReceived.addListener(details => {
   let url = new URL(details.url);
