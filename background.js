@@ -43,10 +43,11 @@ chrome.webRequest.onBeforeRequest.addListener(details => {
     return;
   }
 
-  if (tabRequest[details.tabId]) {
-    tabRequest[details.tabId][details.requestId] = details;
-  } else {
-    tabRequest[details.tabId]= {};
+  if (!tabRequest[details.tabId]) {
+    tabRequest[details.tabId] = {};
+  }
+
+  if (!tabRequest[details.tabId][details.requestId]) {
     tabRequest[details.tabId][details.requestId] = details;
   }
 },
@@ -54,6 +55,24 @@ chrome.webRequest.onBeforeRequest.addListener(details => {
 { urls: ["*://*/*"] },
 // extraInfoSpec
 ["requestBody"]);
+
+chrome.webRequest.onBeforeRedirect.addListener(details => {
+  let url = new URL(details.url);
+
+  if (!getAllWhitelistOrigin().includes(url.origin)) {
+    return;
+  }
+
+  if (details.tabId === -1) {
+    return;
+  }
+
+  if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
+    tabRequest[details.tabId][details.requestId].redirect = 1;
+  }
+},
+// filters
+{ urls: ["*://*/*"] });
 
 chrome.webRequest.onBeforeSendHeaders.addListener(details => {
   let url = new URL(details.url);
@@ -98,9 +117,14 @@ const corsService = details => {
   }
 
   let extra = [];
+  let redirect;
+
+  if (tabRequest[details.tabId] && tabRequest[details.tabId][details.requestId]) {
+    redirect = !!tabRequest[details.tabId][details.requestId].redirect;
+  }
   extra.push({
     name: 'Access-Control-Allow-Origin',
-    value: details.initiator === 'null' ? '*' : details.initiator ? details.initiator : '*'
+    value: (redirect || details.initiator === 'null') ? '*' : details.initiator ? details.initiator : '*'
   });
   extra.push({
     name: 'Access-Control-Allow-Methods',
