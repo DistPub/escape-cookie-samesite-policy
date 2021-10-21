@@ -210,7 +210,7 @@ const cookieService = details => {
 
   if (setCookies.length && url.protocol === 'http:') {
     setCookies.push({
-      name: 'x-chrome-extension-note',
+      name: 'x-edge-lover-warning',
       value: `the origin set-cookie is insecure but modified to secure, you need add ${url.origin} to chrome://flags/#unsafely-treat-insecure-origin-as-secure`
     });
   }
