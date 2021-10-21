@@ -204,7 +204,7 @@ const cookieService = details => {
       attrs.push('Secure')
     }
 
-    cookie.value = attrs.join(';');
+    cookie.value = attrs.filter(item=>!/httponly/i.test(item)).join(';');
     return cookie;
   });
 
